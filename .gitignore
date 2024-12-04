@@ -1,0 +1,7 @@
+.env
+.vscode
+testInput.txt
+node_modules
+problems/**/input.txt
+problems/**/answers.json
+aoc-ts-toolkit

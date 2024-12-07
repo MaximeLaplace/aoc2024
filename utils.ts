@@ -113,16 +113,17 @@ export const findIndicesOf = (
 	return indices;
 };
 
-const DIRECTIONS = [
+export const DIRECTIONS = [
 	'top-left',
 	'top',
 	'top-right',
 	'left',
 	'right',
 	'bottom-left',
+	'bottom',
 	'bottom-right'
 ] as const;
-type Direction = (typeof DIRECTIONS)[number];
+export type Direction = (typeof DIRECTIONS)[number];
 type Increment = -1 | 0 | 1;
 const DIRECTION_TO_INCREMENTS: Record<
 	Direction,
@@ -134,6 +135,7 @@ const DIRECTION_TO_INCREMENTS: Record<
 	left: { i: 0, j: -1 },
 	right: { i: 0, j: 1 },
 	'bottom-left': { i: 1, j: -1 },
+	bottom: { i: 1, j: 0 },
 	'bottom-right': { i: 1, j: 1 }
 };
 

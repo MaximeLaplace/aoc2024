@@ -1,6 +1,6 @@
 import { parseInput } from './parsing';
 
-const isSafe = (report: number[]) => {
+export const isSafe = (report: number[]) => {
 	let isIncreasing = report[1] > report[0];
 	for (let i = 0; i < report.length - 1; i++) {
 		const diff = Math.abs(report[i] - report[i + 1]);

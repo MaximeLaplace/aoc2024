@@ -1,7 +1,21 @@
 import { isArray } from 'lodash';
 
-type Coords = [number, number];
-type Point<T extends unknown> = {
+export const cachify = <T extends (...args: any) => any>(func: T) => {
+	const cache = new Map<string, ReturnType<T>>();
+
+	return (...args: Parameters<T>): ReturnType<T> => {
+		const cacheValue = cache.get(JSON.stringify(args));
+		if (cacheValue) {
+			return cacheValue;
+		}
+		const computedValue = func(...args);
+		cache.set(JSON.stringify(args), computedValue);
+		return computedValue;
+	};
+};
+
+export type Coords = [number, number];
+export type Point<T extends unknown> = {
 	value: T;
 	position: Coords;
 };
@@ -11,10 +25,10 @@ export const isValidIndex =
 	([i, j]: Coords) =>
 		i >= 0 && i < grid.length && j >= 0 && j < grid[0].length;
 
-export const getAdjacentNeighbors = <T extends unknown>(
+export function getAdjacentNeighbors<T extends unknown>(
 	grid: T[][],
 	[i, j]: Coords
-): Point<T>[] => {
+): Point<T>[] {
 	const neighborIndices: Coords[] = [
 		[i - 1, j],
 		[i, j - 1],
@@ -24,11 +38,11 @@ export const getAdjacentNeighbors = <T extends unknown>(
 
 	const validIndices = neighborIndices.filter(isValidIndex(grid));
 
-	return validIndices.map(([i, j]) => ({
-		value: grid[i][j],
-		position: [i, j]
+	return validIndices.map(([a, b]) => ({
+		value: grid[a][b],
+		position: [a, b]
 	}));
-};
+}
 
 export const getAllNeighbors = <T extends unknown>(
 	grid: T[][],
@@ -78,10 +92,9 @@ export function codec(input: string): Coords;
 export function codec(input: Coords): string;
 export function codec(input: string | Coords): Coords | string {
 	if (isArray(input)) {
-		return `${input[0]}-${input[1]}`;
+		return `${input[0]},${input[1]}`;
 	}
-
-	return input.split('-').map((e) => parseInt(e)) as Coords;
+	return input.split(',').map((e) => parseInt(e)) as Coords;
 }
 
 export const transpose = <T extends unknown>(m: T[][]) =>
@@ -125,19 +138,37 @@ export const DIRECTIONS = [
 ] as const;
 export type Direction = (typeof DIRECTIONS)[number];
 type Increment = -1 | 0 | 1;
-const DIRECTION_TO_INCREMENTS: Record<
-	Direction,
-	{ i: Increment; j: Increment }
-> = {
-	'top-left': { i: -1, j: -1 },
-	top: { i: -1, j: 0 },
-	'top-right': { i: -1, j: 1 },
-	left: { i: 0, j: -1 },
-	right: { i: 0, j: 1 },
-	'bottom-left': { i: 1, j: -1 },
-	bottom: { i: 1, j: 0 },
-	'bottom-right': { i: 1, j: 1 }
-};
+export type NumericDirection = [Increment, Increment];
+const DIRECTION_TO_INCREMENTS = new Map<Direction, NumericDirection>();
+DIRECTION_TO_INCREMENTS.set('top-left', [-1, -1]);
+DIRECTION_TO_INCREMENTS.set('top', [-1, 0]);
+DIRECTION_TO_INCREMENTS.set('top-right', [-1, 1]);
+DIRECTION_TO_INCREMENTS.set('left', [0, -1]);
+DIRECTION_TO_INCREMENTS.set('right', [0, 1]);
+DIRECTION_TO_INCREMENTS.set('bottom-left', [1, -1]);
+DIRECTION_TO_INCREMENTS.set('bottom', [1, 0]);
+DIRECTION_TO_INCREMENTS.set('bottom-right', [1, 1]);
+
+const INCREMENTS_TO_DIRECTION = new Map<string, Direction>();
+INCREMENTS_TO_DIRECTION.set('-1,-1', 'top-left');
+INCREMENTS_TO_DIRECTION.set('-1,0', 'top');
+INCREMENTS_TO_DIRECTION.set('-1,1', 'top-right');
+INCREMENTS_TO_DIRECTION.set('0,-1', 'left');
+INCREMENTS_TO_DIRECTION.set('0,1', 'right');
+INCREMENTS_TO_DIRECTION.set('1,-1', 'bottom-left');
+INCREMENTS_TO_DIRECTION.set('1,0', 'bottom');
+INCREMENTS_TO_DIRECTION.set('1,1', 'bottom-right');
+
+export function getDirection(input: Direction): NumericDirection;
+export function getDirection(input: NumericDirection): Direction;
+export function getDirection(
+	input: Direction | NumericDirection
+): NumericDirection | Direction {
+	if (isArray(input)) {
+		return INCREMENTS_TO_DIRECTION.get(codec(input));
+	}
+	return DIRECTION_TO_INCREMENTS.get(input);
+}
 
 export const getAllNeighborsInDirectionUntilEdge = <T extends unknown>(
 	grid: T[][],
@@ -160,4 +191,78 @@ export const getAllNeighborsInDirectionUntilEdge = <T extends unknown>(
 	}
 
 	return neighbors;
+};
+
+export function combinations<T>(
+	items: T[],
+	size: number = items.length
+): T[][] {
+	const combinations: T[][] = [];
+	const stack: number[] = [];
+	let i = 0;
+
+	size = Math.min(items.length, size);
+
+	while (true) {
+		if (stack.length === size) {
+			combinations.push(stack.map((index) => items[index]));
+			i = stack.pop()! + 1;
+		}
+
+		if (i >= items.length) {
+			if (stack.length === 0) {
+				break;
+			}
+			i = stack.pop()! + 1;
+		} else {
+			stack.push(i++);
+		}
+	}
+
+	return combinations;
+}
+
+export function permutations<T>(
+	items: T[],
+	size: number = items.length
+): T[][] {
+	if (!size) {
+		return [[]];
+	}
+
+	// If size is greater than items.length, reset size.
+	size = Math.min(items.length, size);
+
+	return items.flatMap((item) => {
+		return permutations(
+			items.filter((it) => it !== item),
+			size - 1
+		).map((permutation) => [item, ...permutation]);
+	});
+}
+
+export const sum = (list: number[]) => list.reduce((a, b) => a + b, 0);
+
+export const RELATIVE_INT_REGEX = /-?\d+/g;
+export const NATURAL_INT_REGEX = /\d+/g;
+export const extractInts = (
+	input: string,
+	includeRelatives: boolean = true
+): number[] => {
+	const matches = input.match(
+		includeRelatives ? RELATIVE_INT_REGEX : NATURAL_INT_REGEX
+	);
+	return matches ? matches.map(Number) : [];
+};
+
+export const RELATIVE_FLOAT_REGEX = /-?\d+(\.\d+)?/g;
+export const NATURAL_FLOAT_REGEX = /\d+(\.\d+)?/g;
+export const extractFloats = (
+	input: string,
+	includeRelatives: boolean = true
+): number[] => {
+	const matches = input.match(
+		includeRelatives ? RELATIVE_FLOAT_REGEX : NATURAL_FLOAT_REGEX
+	);
+	return matches ? matches.map(Number) : [];
 };
